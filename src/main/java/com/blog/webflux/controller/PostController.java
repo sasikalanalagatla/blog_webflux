@@ -1,6 +1,7 @@
 package com.blog.webflux.controller;
 
 import com.blog.webflux.dto.PostDto;
+import com.blog.webflux.model.Post;
 import com.blog.webflux.service.impl.PostServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -37,5 +38,15 @@ public class PostController {
     @DeleteMapping("/delete/{postId}")
     public Mono<Void> deletePostById(@PathVariable String postId){
         return postService.deletePostById(postId);
+    }
+
+    @GetMapping("/search")
+    public Flux<Post> searchPosts(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "5") int size,
+            @RequestParam(defaultValue = "desc") String sortOrder) {
+
+        return postService.searchPosts(keyword, page, size, sortOrder);
     }
 }

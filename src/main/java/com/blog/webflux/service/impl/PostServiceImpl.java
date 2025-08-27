@@ -9,6 +9,12 @@ import com.blog.webflux.repository.PostRepository;
 import com.blog.webflux.repository.TagRepository;
 import com.blog.webflux.service.PostService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.mongodb.core.ReactiveMongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -26,6 +32,8 @@ public class PostServiceImpl implements PostService {
     private TagRepository tagRepository;
     @Autowired
     private CommentRepository commentRepository;
+    @Autowired
+    private ReactiveMongoTemplate mongoTemplate;
 
     @Override
     public Mono<PostDto> createPost(PostDto postDto) {
@@ -87,6 +95,30 @@ public class PostServiceImpl implements PostService {
         return commentRepository.findByPostId(postId)
                 .flatMap(comment -> commentRepository.deleteById(comment.getId()))
                 .then(postRepository.deleteById(postId));
+    }
+
+    @Override
+    public Flux<Post> searchPosts(String keyword, int page, int size, String sortOrder) {
+        Criteria criteria = new Criteria();
+
+        if (keyword != null && !keyword.isBlank()) {
+            criteria = new Criteria().orOperator(
+                    Criteria.where("postTitle").regex(keyword, "i"),
+                    Criteria.where("postContent").regex(keyword, "i"),
+                    Criteria.where("author").regex(keyword, "i")
+            );
+        }
+
+        Sort sort = Sort.by(
+                "desc".equalsIgnoreCase(sortOrder) ? Sort.Direction.DESC : Sort.Direction.ASC,
+                "createdAt"
+        );
+
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        Query query = Query.query(criteria).with(pageable);
+
+        return mongoTemplate.find(query, Post.class);
     }
 
     private Flux<Tag> saveOrCreateTags(List<String> tagIds) {
